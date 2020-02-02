@@ -1,0 +1,526 @@
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  1
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00001 ;***********************************************
+                      00002 ;   CLOCK       8MHz(内部クロック)
+                      00003 ;   PORTB       0;LED赤
+                      00004 ;
+                      00005 ;   LEDを点滅させる(TMR0使用)
+                      00006 ;***********************************************
+                      00007 
+                      00008     ;***********************************************
+                      00009     ;   使用するPICとインクルード設定
+                      00010     ;***********************************************
+                      00011     LIST  P=16F88
+                      00012     #INCLUDE "p16f88.inc"
+                      00001         LIST
+                      00002 
+                      00003 ;==========================================================================
+                      00004 ; Build date : Oct 24 2019
+                      00005 ;  MPASM PIC16F88 processor include
+                      00006 ; 
+                      00007 ;  (c) Copyright 1999-2019 Microchip Technology, All rights reserved
+                      00008 ;==========================================================================
+                      00009 
+                      00550         LIST
+                      00013 
+                      00014 ;***********************************************
+                      00015 ;   コンフィギュレーション設定
+                      00016 ;***********************************************
+                      00017 ; CONFIG1
+                      00018 ; __config 0xEF70
+2007   3F50           00019     __CONFIG _CONFIG1, _INTRC_IO & _WDT_OFF & _PWRTE_ON & _MCLRE_OFF & _BOREN_ON & _LVP_OFF & _CPD_OFF &
+                             _WRT_OFF & _CPD_OFF
+                      00020 
+                      00021 ; CONFIG2
+                      00022 ; __config 0xFFFC
+2008   3FFC           00023     __CONFIG _CONFIG2, _FCMEN_OFF & _IESO_OFF
+                      00024 
+                      00025 ;***********************************************
+                      00026 ;   定数定義
+                      00027 ;***********************************************
+  00000020            00028 tm0_cnt    EQU     H'20'    ; TMR0割り込み発生カウント
+  00000021            00029 save_st    EQU     H'21'    ; STATUSのセーブ領域
+  00000022            00030 save_w     EQU     H'22'    ; W-regのセーブ領域
+                      00031  
+                      00032 
+                      00033     ORG     0               ; リセットベクタ(0番地)の指定
+0000   2???           00034     GOTO    INIT            ; 初期処理に飛ぶ
+                      00035 
+                      00036     ;***********************************************
+                      00037     ; 割り込み処理 TMR0使用
+                      00038     ;***********************************************
+                      00039     ORG     4               ; 割り込みベクタ(4番地)の指定
+0004   110B           00040     BCF     INTCON,TMR0IF   ; TMR0オーバーフロー割り込みフラグリセット
+0005   168B           00041     BSF     INTCON,TMR0IE   ; TMR0割り込み許可
+0006   00A2           00042     MOVWF   save_w          ; W_regセーブ
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  2
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+0007   0E03           00043     SWAPF   STATUS,W
+0008   00A1           00044     MOVWF   save_st         ; STATUSレジスタセーブ
+                      00045 
+0009   2???           00046     GOTO    ITR_MAIN
+                      00047 
+                      00048 ;***********************************************
+                      00049 ;   初期化処理
+                      00050 ;***********************************************
+000A                  00051 INIT
+000A   1683           00052     BSF     STATUS,RP0
+                      00053     
+000B   3070           00054     MOVLW   70H             ; 内蔵クロックの周波数を8MHzに設定
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000C   008F           00055     MOVWF   OSCCON          ; 内蔵クロック設定
+                      00056     
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000D   0186           00057     CLRF    TRISB           ; PORTB設定(すべて出力)
+                      00058 
+000E   3087           00059     MOVLW   H'87'           ; OPTIONレジスタの設定
+Message[302]: Register in operand not in bank 0.  Ensure that bank bits are correct.
+000F   0081           00060     MOVWF   OPTION_REG      ; PORTBプルアップ使用しない、TMR0クロックソース(内部ク�
+                            ��ック)、プリスケーラー1/256
+                      00061 
+0010   1283           00062     BCF     STATUS,RP0      ; バンク0に切り替え
+                      00063 
+0011   30A0           00064     MOVLW   H'A0'           ; INTCONレジスタ設定
+0012   008B           00065     MOVWF   INTCON          ; 全体割り込み許可、タイマ0割り込み許可
+                      00066 
+0013   3013           00067     MOVLW   D'19'           ; TMR0割り込み回数
+0014   00A0           00068     MOVWF   tm0_cnt         ; 割り込みカウンタ設定
+                      00069 
+0015   0186           00070     CLRF    PORTB           ; PORTBをクリア
+0016   0181           00071     CLRF    TMR0            ; TMR0をクリア
+                      00072 
+                      00073 ;***********************************************
+                      00074 ;   メインループ処理
+                      00075 ;***********************************************
+0017                  00076 MAIN_LOOP
+0017   0000           00077     NOP
+0018   2???           00078     GOTO    MAIN_LOOP
+                      00079 
+                      00080 ;***********************************************
+                      00081 ;   TMR0割り込みメイン処理
+                      00082 ;***********************************************
+0019                  00083 ITR_MAIN
+0019   0BA0           00084     DECFSZ  tm0_cnt,F       ; TMR0割り込み発生カウント回数完了したかの確認
+001A   2???           00085     GOTO    TM0EXIT         ;   カウントしてなければTM0EXITへ
+                      00086 
+001B   3001           00087     MOVLW   H'01'
+001C   0686           00088     XORWF   PORTB,F         ; RB0反転
+                      00089     
+001D   3013           00090     MOVLW   D'19'           ; 割り込みカウンタ回数を19
+001E   00A0           00091     MOVWF   tm0_cnt         ; 割り込みカウンタ設定
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  3
+
+
+LOC  OBJECT CODE     LINE SOURCE TEXT
+  VALUE
+
+                      00092 
+                      00093 ;***********************************************
+                      00094 ;   TMR0割り込み終了処理
+                      00095 ;***********************************************
+001F                  00096 TM0EXIT
+001F   0E21           00097     SWAPF   save_st,W
+0020   0083           00098     MOVWF   STATUS          ; STATUSレジスタロード
+0021   0EA2           00099     SWAPF   save_w,F
+0022   0E22           00100     SWAPF   save_w,W        ; W-regロード
+0023   3000           00101     MOVLW   H'0' 
+0024   0081           00102     MOVWF   TMR0            ; TMR0クリア
+0025   0009           00103     RETFIE                  ; 割り込み許可にしてリターン
+                      00104     
+3F50 3FFC             00105     END
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  4
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+ADCON0                            0000001F
+ADCON1                            0000009F
+ADCS0                             00000006
+ADCS1                             00000007
+ADCS2                             00000006
+ADDEN                             00000003
+ADFM                              00000007
+ADIE                              00000006
+ADIF                              00000006
+ADON                              00000000
+ADRESH                            0000001E
+ADRESL                            0000009E
+ANS0                              00000000
+ANS1                              00000001
+ANS2                              00000002
+ANS3                              00000003
+ANS4                              00000004
+ANS5                              00000005
+ANS6                              00000006
+ANSEL                             0000009B
+BF                                00000000
+BRGH                              00000002
+C                                 00000000
+C1INV                             00000004
+C1OUT                             00000006
+C2INV                             00000005
+C2OUT                             00000007
+CCP1CON                           00000017
+CCP1IE                            00000002
+CCP1IF                            00000002
+CCP1M0                            00000000
+CCP1M1                            00000001
+CCP1M2                            00000002
+CCP1M3                            00000003
+CCP1X                             00000005
+CCP1Y                             00000004
+CCPR1                             00000015
+CCPR1H                            00000016
+CCPR1L                            00000015
+CHS0                              00000003
+CHS1                              00000004
+CHS2                              00000005
+CIS                               00000003
+CKE                               00000006
+CKP                               00000004
+CM0                               00000000
+CM1                               00000001
+CM2                               00000002
+CMCON                             0000009C
+CMIE                              00000006
+CMIF                              00000006
+CREN                              00000004
+CSRC                              00000007
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  5
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+CVR0                              00000000
+CVR1                              00000001
+CVR2                              00000002
+CVR3                              00000003
+CVRCON                            0000009D
+CVREN                             00000007
+CVROE                             00000006
+CVRR                              00000005
+D                                 00000005
+DATA_ADDRESS                      00000005
+DC                                00000001
+D_A                               00000005
+D_NOT_A                           00000005
+EEADR                             0000010D
+EEADRH                            0000010F
+EECON1                            0000018C
+EECON2                            0000018D
+EEDATA                            0000010C
+EEDATH                            0000010E
+EEIE                              00000004
+EEIF                              00000004
+EEPGD                             00000007
+F                                 00000001
+FERR                              00000002
+FREE                              00000004
+FSR                               00000004
+GIE                               00000007
+GO                                00000002
+GO_DONE                           00000002
+GO_NOT_DONE                       00000002
+I2C_DATA                          00000005
+I2C_READ                          00000002
+I2C_START                         00000003
+I2C_STOP                          00000004
+INDF                              00000000
+INIT                              0000000A
+INT0IE                            00000004
+INT0IF                            00000001
+INTCON                            0000000B
+INTE                              00000004
+INTEDG                            00000006
+INTF                              00000001
+IOFS                              00000002
+IRCF0                             00000004
+IRCF1                             00000005
+IRCF2                             00000006
+IRP                               00000007
+ITR_MAIN                          00000019
+MAIN_LOOP                         00000017
+NOT_A                             00000005
+NOT_ADDRESS                       00000005
+NOT_BO                            00000000
+NOT_BOR                           00000000
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  6
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+NOT_DONE                          00000002
+NOT_PD                            00000003
+NOT_POR                           00000001
+NOT_RBPU                          00000007
+NOT_RC8                           00000006
+NOT_T1SYNC                        00000002
+NOT_TO                            00000004
+NOT_TX8                           00000006
+NOT_W                             00000002
+NOT_WRITE                         00000002
+OERR                              00000001
+OPTION_REG                        00000081
+OSCCON                            0000008F
+OSCTUNE                           00000090
+OSFIE                             00000007
+OSFIF                             00000007
+OSTS                              00000003
+P                                 00000004
+PCL                               00000002
+PCLATH                            0000000A
+PCON                              0000008E
+PEIE                              00000006
+PIE1                              0000008C
+PIE2                              0000008D
+PIR1                              0000000C
+PIR2                              0000000D
+PORTA                             00000005
+PORTB                             00000006
+PR2                               00000092
+PS0                               00000000
+PS1                               00000001
+PS2                               00000002
+PSA                               00000003
+R                                 00000002
+RA0                               00000000
+RA1                               00000001
+RA2                               00000002
+RA3                               00000003
+RA4                               00000004
+RA5                               00000005
+RA6                               00000006
+RA7                               00000007
+RB0                               00000000
+RB1                               00000001
+RB2                               00000002
+RB3                               00000003
+RB4                               00000004
+RB5                               00000005
+RB6                               00000006
+RB7                               00000007
+RBIE                              00000003
+RBIF                              00000000
+RC8_9                             00000006
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  7
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+RC9                               00000006
+RCD8                              00000000
+RCIE                              00000005
+RCIF                              00000005
+RCREG                             0000001A
+RCSTA                             00000018
+RD                                00000000
+READ_WRITE                        00000002
+RP0                               00000005
+RP1                               00000006
+RX9                               00000006
+RX9D                              00000000
+R_NOT_W                           00000002
+R_W                               00000002
+S                                 00000003
+SCS0                              00000000
+SCS1                              00000001
+SMP                               00000007
+SPBRG                             00000099
+SPEN                              00000007
+SREN                              00000005
+SSPADD                            00000093
+SSPBUF                            00000013
+SSPCON                            00000014
+SSPEN                             00000005
+SSPIE                             00000003
+SSPIF                             00000003
+SSPM0                             00000000
+SSPM1                             00000001
+SSPM2                             00000002
+SSPM3                             00000003
+SSPOV                             00000006
+SSPSTAT                           00000094
+STATUS                            00000003
+SWDTE                             00000000
+SWDTEN                            00000000
+SYNC                              00000004
+T0CS                              00000005
+T0SE                              00000004
+T1CKPS0                           00000004
+T1CKPS1                           00000005
+T1CON                             00000010
+T1INSYNC                          00000002
+T1OSCEN                           00000003
+T1RUN                             00000006
+T2CKPS0                           00000000
+T2CKPS1                           00000001
+T2CON                             00000012
+TM0EXIT                           0000001F
+TMR0                              00000001
+TMR0IE                            00000005
+TMR0IF                            00000002
+TMR1                              0000000E
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  8
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+TMR1CS                            00000001
+TMR1H                             0000000F
+TMR1IE                            00000000
+TMR1IF                            00000000
+TMR1L                             0000000E
+TMR1ON                            00000000
+TMR2                              00000011
+TMR2IE                            00000001
+TMR2IF                            00000001
+TMR2ON                            00000002
+TOUTPS0                           00000003
+TOUTPS1                           00000004
+TOUTPS2                           00000005
+TOUTPS3                           00000006
+TRISA                             00000085
+TRISA0                            00000000
+TRISA1                            00000001
+TRISA2                            00000002
+TRISA3                            00000003
+TRISA4                            00000004
+TRISA5                            00000005
+TRISA6                            00000006
+TRISA7                            00000007
+TRISB                             00000086
+TRISB0                            00000000
+TRISB1                            00000001
+TRISB2                            00000002
+TRISB3                            00000003
+TRISB4                            00000004
+TRISB5                            00000005
+TRISB6                            00000006
+TRISB7                            00000007
+TRMT                              00000001
+TUN0                              00000000
+TUN1                              00000001
+TUN2                              00000002
+TUN3                              00000003
+TUN4                              00000004
+TUN5                              00000005
+TX8_9                             00000006
+TX9                               00000006
+TX9D                              00000000
+TXD8                              00000000
+TXEN                              00000005
+TXIE                              00000004
+TXIF                              00000004
+TXREG                             00000019
+TXSTA                             00000098
+UA                                00000001
+VCFG0                             00000004
+VCFG1                             00000005
+W                                 00000000
+WCOL                              00000007
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE  9
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+WDTCON                            00000105
+WDTPS0                            00000001
+WDTPS1                            00000002
+WDTPS2                            00000003
+WDTPS3                            00000004
+WR                                00000001
+WREN                              00000002
+WRERR                             00000003
+Z                                 00000002
+_BODEN_OFF                        00003FBF
+_BODEN_ON                         00003FFF
+_BOREN_OFF                        00003FBF
+_BOREN_ON                         00003FFF
+_CCP1_RB0                         00003FFF
+_CCP1_RB3                         00002FFF
+_CCPMX_RB0                        00003FFF
+_CCPMX_RB3                        00002FFF
+_CONFIG1                          00002007
+_CONFIG2                          00002008
+_CPD_OFF                          00003FFF
+_CPD_ON                           00003EFF
+_CP_ALL                           00001FFF
+_CP_OFF                           00003FFF
+_CP_ON                            00001FFF
+_DEBUG_OFF                        00003FFF
+_DEBUG_ON                         000037FF
+_DEVID1                           00002006
+_EXTCLK                           00003FEF
+_EXTRC_CLKOUT                     00003FFF
+_EXTRC_IO                         00003FFE
+_FCMEN_OFF                        00003FFE
+_FCMEN_ON                         00003FFF
+_FOSC_EC                          00003FEF
+_FOSC_EXTRCCLK                    00003FFF
+_FOSC_EXTRCIO                     00003FFE
+_FOSC_HS                          00003FEE
+_FOSC_INTOSCCLK                   00003FFD
+_FOSC_INTOSCIO                    00003FFC
+_FOSC_LP                          00003FEC
+_FOSC_XT                          00003FED
+_HS_OSC                           00003FEE
+_IDLOC0                           00002000
+_IDLOC1                           00002001
+_IDLOC2                           00002002
+_IDLOC3                           00002003
+_IESO_OFF                         00003FFD
+_IESO_ON                          00003FFF
+_INTRC_CLKOUT                     00003FFD
+_INTRC_IO                         00003FFC
+_LP_OSC                           00003FEC
+_LVP_OFF                          00003F7F
+_LVP_ON                           00003FFF
+_MCLRE_OFF                        00003FDF
+MPASM 5.86  /HOME/NAOKI/MPLABXPROJECTS/LED_T   2-2-2020  18:59:11         PAGE 10
+
+
+SYMBOL TABLE
+  LABEL                             VALUE 
+
+_MCLRE_ON                         00003FFF
+_MCLR_OFF                         00003FDF
+_MCLR_ON                          00003FFF
+_PWRTE_OFF                        00003FFF
+_PWRTE_ON                         00003FF7
+_WDTE_OFF                         00003FFB
+_WDTE_ON                          00003FFF
+_WDT_OFF                          00003FFB
+_WDT_ON                           00003FFF
+_WRT_2048                         00003BFF
+_WRT_256                          00003DFF
+_WRT_ALL                          000039FF
+_WRT_OFF                          00003FFF
+_WRT_PROTECT_2048                 00003BFF
+_WRT_PROTECT_256                  00003DFF
+_WRT_PROTECT_ALL                  000039FF
+_WRT_PROTECT_OFF                  00003FFF
+_XT_OSC                           00003FED
+__16F88                           00000001
+save_st                           00000021
+save_w                            00000022
+tm0_cnt                           00000020
+
+Errors   :     0
+Warnings :     0 reported,     0 suppressed
+Messages :     3 reported,     0 suppressed
+
+

@@ -61,14 +61,14 @@ INIT
 
     BCF     STATUS,RP0      ; バンク0に切り替え
 
-    MOVLW   H'A0'           ; INTCONレジスタ設定
-    MOVWF   INTCON          ; 全体割り込み許可、タイマ0割り込み許可
-
     MOVLW   D'19'           ; TMR0割り込み回数
     MOVWF   tm0_cnt         ; 割り込みカウンタ設定
 
     CLRF    PORTB           ; PORTBをクリア
     CLRF    TMR0            ; TMR0をクリア
+
+　　MOVLW   H'A0'           ; INTCONレジスタ設定
+    MOVWF   INTCON          ; 全体割り込み許可、タイマ0割り込み許可
 
 ;***********************************************
 ;   メインループ処理
